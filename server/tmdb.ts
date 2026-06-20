@@ -15,8 +15,10 @@ async function tmdbFetch<T>(path: string): Promise<T> {
   const cached = getCached<T>(cacheKey);
   if (cached) return cached;
 
-  const url = `${TMDB_BASE}${path}${path.includes("?") ? "&" : "?"}api_key=${apiKey()}`;
-  const res = await fetch(url);
+  const url = `${TMDB_BASE}${path}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${apiKey()}` },
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`TMDB ${res.status}: ${text}`);
