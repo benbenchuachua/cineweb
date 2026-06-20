@@ -1,9 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { enforceRateLimit, getClientIp } from "./rateLimit";
 import { getGraph, searchTmdb } from "./tmdb";
 
-function sendJson(res: ServerResponse, status: number, body: unknown) {
+function sendJson(res: ServerResponse, status: number, body: unknown, headers?: Record<string, string>) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
+  if (headers) {
+    for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
+  }
   res.end(JSON.stringify(body));
 }
 
@@ -18,12 +22,25 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     return;
   }
 
+  const ip = getClientIp(req.headers as Record<string, string | string[] | undefined>);
+
   try {
     const url = parseUrl(req);
     const path = url.pathname;
 
     if (path === "/api/search") {
-      const q = url.searchParams.get("q") ?? "";
+      const limit = enforceRateLimit(ip, "search");
+      if (!limit.ok) {
+        sendJson(res, 429, { error: "Too many requests. Please slow down." }, {
+          "Retry-After": String(limit.retryAfter ?? 60),
+        });
+        return;
+      }
+      const q = (url.searchParams.get("q") ?? "").trim();
+      if (q.length > 100) {
+        sendJson(res, 400, { error: "Query too long" });
+        return;
+      }
       const data = await searchTmdb(q);
       sendJson(res, 200, data);
       return;
@@ -31,6 +48,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
     const movieMatch = path.match(/^\/api\/graph\/movie\/(\d+)$/);
     if (movieMatch) {
+      const limit = enforceRateLimit(ip, "graph");
+      if (!limit.ok) {
+        sendJson(res, 429, { error: "Too many requests. Please slow down." }, {
+          "Retry-After": String(limit.retryAfter ?? 60),
+        });
+        return;
+      }
       const data = await getGraph("movie", Number(movieMatch[1]));
       sendJson(res, 200, data);
       return;
@@ -38,6 +62,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
     const personMatch = path.match(/^\/api\/graph\/person\/(\d+)$/);
     if (personMatch) {
+      const limit = enforceRateLimit(ip, "graph");
+      if (!limit.ok) {
+        sendJson(res, 429, { error: "Too many requests. Please slow down." }, {
+          "Retry-After": String(limit.retryAfter ?? 60),
+        });
+        return;
+      }
       const data = await getGraph("person", Number(personMatch[1]));
       sendJson(res, 200, data);
       return;

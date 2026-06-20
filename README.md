@@ -5,7 +5,7 @@
 ## Setup
 
 1. Get a free API key at [TMDB Settings → API](https://www.themoviedb.org/settings/api)
-   - **Application URL:** use your GitHub repo URL or `http://localhost:5173` — TMDB requires a URL but any valid one works for personal use
+   - **Application URL:** `https://github.com/benbenchuachua/cineweb` or `http://localhost:5173`
 2. **Never commit your key.** Copy `.env.example` to `.env` locally only:
 
 ```bash
@@ -29,6 +29,8 @@ Open [http://localhost:5173](http://localhost:5173).
 3. Deploy
 
 The API key lives only on the server (`/api/*` proxy). It is never sent to the browser or stored in git.
+
+API routes are rate-limited per IP (15 searches/min, 40 graph loads/min) to protect your TMDB quota.
 
 ## Features
 
