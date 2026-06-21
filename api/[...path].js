@@ -310,6 +310,14 @@ async function handler(req, res) {
   if (parts[0] === "random") {
     return handleRandomRequest(req, res);
   }
+  if (parts[0] === "graph") {
+    const type = req.query.type;
+    const id = req.query.id;
+    if ((type === "movie" || type === "person") && id != null && String(id)) {
+      req.query.id = String(id);
+      return handleGraphRequest(req, res, type);
+    }
+  }
   if (parts[0] === "graph" && parts[1] === "movie" && parts[2]) {
     req.query.id = parts[2];
     return handleGraphRequest(req, res, "movie");

@@ -61,7 +61,10 @@ function writeSession(key: CacheKey, data: GraphResponse) {
 }
 
 async function fetchFromNetwork(type: "movie" | "person", id: number): Promise<GraphResponse> {
-  return fetchJson<GraphResponse>(`/api/graph/${type}/${id}`, "Failed to load graph");
+  return fetchJson<GraphResponse>(
+    `/api/graph?type=${type}&id=${id}`,
+    "Failed to load graph"
+  );
 }
 
 export function getCachedGraph(type: "movie" | "person", id: number): GraphResponse | null {

@@ -9,14 +9,10 @@ export async function fetchJson<T>(url: string, fallbackError: string): Promise<
   } catch {
     const snippet = text.trim().slice(0, 200);
     if (snippet.includes("NOT_FOUND") || snippet.includes("could not be found")) {
-      throw new Error(
-        "API unavailable on this preview URL — use cineweb-jet.vercel.app or disable Vercel Deployment Protection for previews"
-      );
+      throw new Error("Could not reach the API — hard refresh and try again");
     }
     if (snippet.includes("Authentication Required")) {
-      throw new Error(
-        "This preview deployment requires Vercel login — use cineweb-jet.vercel.app for public access"
-      );
+      throw new Error("This deployment requires Vercel login to access the API");
     }
     throw new Error(
       res.ok
