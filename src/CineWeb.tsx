@@ -3,6 +3,7 @@ import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ShareButton } from "./components/ShareButton";
+import { TmdbAttribution } from "./components/TmdbAttribution";
 import type { BreadcrumbItem, GraphNode, SearchResult } from "./lib/api";
 import { fetchGraph, fetchRandomPerson, parsePath, prefetchConnections, prefetchGraph } from "./lib/api";
 import { nodeDescription } from "./lib/layout";
@@ -403,6 +404,8 @@ export function CineWeb() {
           {loading && <span>Loading…</span>}
         </footer>
       )}
+
+      <TmdbAttribution />
     </div>
   );
 }

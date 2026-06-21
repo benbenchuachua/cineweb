@@ -28,9 +28,15 @@ Open [http://localhost:5173](http://localhost:5173).
 2. Add environment variable **`TMDB_API_KEY`** in Project → Settings → Environment Variables (Production, Preview, Development)
 3. Deploy
 
+4. **Analytics (optional):** In the Vercel project dashboard, enable **Web Analytics** and **Speed Insights**. The app already includes both via `@vercel/analytics/react` and `@vercel/speed-insights/react` in `src/main.tsx`. After deploy, visit the live site — data appears within ~30 seconds (disable ad blockers if nothing shows).
+
 The API key lives only on the server (`/api/*` proxy). It is never sent to the browser or stored in git.
 
 API routes are rate-limited per IP (15 searches/min, 40 graph loads/min) to protect your TMDB quota.
+
+## TMDB attribution
+
+The TMDB API is free for non-commercial use when you credit TMDB as the source of data and/or images. CineWeb displays this attribution in the app footer. For commercial licensing, contact [sales@themoviedb.org](mailto:sales@themoviedb.org).
 
 ## Features
 
