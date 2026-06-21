@@ -285,9 +285,15 @@ async function handleGraphRequest(req, res, type) {
 
 // server/vercelEntry.ts
 function pathParts(req) {
+  const rawUrl = req.url ?? "";
+  const pathname = rawUrl.split("?")[0] ?? "";
+  if (pathname.startsWith("/api/")) {
+    const rest = pathname.slice("/api/".length);
+    if (rest) return rest.split("/").filter(Boolean);
+  }
   const segments = req.query.path;
-  if (Array.isArray(segments)) return segments;
-  if (typeof segments === "string") return [segments];
+  if (Array.isArray(segments)) return segments.filter(Boolean);
+  if (typeof segments === "string" && segments) return [segments];
   return [];
 }
 async function handler(req, res) {
