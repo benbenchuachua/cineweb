@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { enforceRateLimit, getClientIp } from "../api/lib/rateLimit";
-import { getGraph, getRandomPerson, searchTmdb, tmdbErrorStatus } from "../api/lib/tmdb";
+import { enforceRateLimit, getClientIp } from "./rateLimit";
+import { getGraph, getRandomPerson, searchTmdb, tmdbErrorStatus } from "./tmdb";
 
 function sendJson(res: ServerResponse, status: number, body: unknown, headers?: Record<string, string>) {
   res.statusCode = status;

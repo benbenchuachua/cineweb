@@ -1,4 +1,4 @@
-import type { GraphResponse, SearchResponse } from "../../api/lib/types";
+import type { GraphResponse, SearchResponse } from "../../server/types";
 import { fetchJson } from "./fetchJson";
 
 const MEMORY_MAX = 80;

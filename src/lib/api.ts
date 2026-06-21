@@ -1,5 +1,5 @@
-export type { GraphNode, GraphResponse, SearchResult, SearchResponse, NodeType } from "../../api/lib/types";
-import type { SearchResult } from "../../api/lib/types";
+export type { GraphNode, GraphResponse, SearchResult, SearchResponse, NodeType } from "../../server/types";
+import type { SearchResult } from "../../server/types";
 import { fetchJson } from "./fetchJson";
 
 export interface BreadcrumbItem {

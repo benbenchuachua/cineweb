@@ -3,7 +3,7 @@ import {
   handleGraphRequest,
   handleRandomRequest,
   handleSearchRequest,
-} from "./lib/vercelHandlers";
+} from "./vercelHandlers";
 
 function pathParts(req: VercelRequest): string[] {
   const segments = req.query.path;
@@ -12,7 +12,7 @@ function pathParts(req: VercelRequest): string[] {
   return [];
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const parts = pathParts(req);
 
   if (parts[0] === "health") {
@@ -42,3 +42,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(404).json({ error: "Not found" });
 }
+
+export default handler;
