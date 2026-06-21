@@ -1,4 +1,5 @@
 import type { GraphResponse, SearchResponse } from "../../server/types";
+import { fetchJson } from "./fetchJson";
 
 const MEMORY_MAX = 80;
 const SESSION_PREFIX = "cineweb:g:";
@@ -60,9 +61,7 @@ function writeSession(key: CacheKey, data: GraphResponse) {
 }
 
 async function fetchFromNetwork(type: "movie" | "person", id: number): Promise<GraphResponse> {
-  const res = await fetch(`/api/graph/${type}/${id}`);
-  if (!res.ok) throw new Error("Failed to load graph");
-  return res.json() as Promise<GraphResponse>;
+  return fetchJson<GraphResponse>(`/api/graph/${type}/${id}`, "Failed to load graph");
 }
 
 export function getCachedGraph(type: "movie" | "person", id: number): GraphResponse | null {
@@ -127,7 +126,8 @@ export function prefetchConnections(connections: Array<{ type: "movie" | "person
 }
 
 export async function search(query: string): Promise<SearchResponse> {
-  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-  if (!res.ok) throw new Error("Search failed");
-  return res.json();
+  return fetchJson<SearchResponse>(
+    `/api/search?q=${encodeURIComponent(query)}`,
+    "Search failed"
+  );
 }

@@ -7,6 +7,15 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#ebf1f9" />
     <title>CineWeb — 3D Movie & Actor Explorer</title>
+    <script>
+      try {
+        var p = new URLSearchParams(location.search).get("path");
+        var s = sessionStorage.getItem("cineweb-session-path");
+        if ((p && p.length > 1) || (s && s.length > 1)) {
+          document.documentElement.dataset.restoring = "true";
+        }
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

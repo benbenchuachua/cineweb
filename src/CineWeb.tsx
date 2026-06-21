@@ -9,6 +9,13 @@ import { fetchGraph, fetchRandomPerson, parsePath, prefetchConnections, prefetch
 import { nodeDescription } from "./lib/layout";
 import { loadSettings, saveSettings, type AppSettings } from "./lib/settings";
 import { hasSeenTopHint, markTopHintSeen } from "./lib/onboarding";
+import {
+  clearRestoringHtml,
+  clearSessionPath,
+  getSavedPathRaw,
+  saveSessionPath,
+  shouldRestoreSession,
+} from "./lib/session";
 import { setActiveTheme } from "./lib/theme";
 import { GraphScene } from "./scene/GraphScene";
 
@@ -18,14 +25,13 @@ export function CineWeb() {
   const sceneRef = useRef<GraphScene | null>(null);
   const crumbsRef = useRef<BreadcrumbItem[]>([]);
   const loadGenRef = useRef(0);
-  const skipTopHintRef = useRef(
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("path")
-  );
+  const skipTopHintRef = useRef(shouldRestoreSession());
 
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [crumbs, setCrumbs] = useState<BreadcrumbItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(shouldRestoreSession);
+  const [loading, setLoading] = useState(shouldRestoreSession);
   const [error, setError] = useState<string | null>(null);
   const [centerLabel, setCenterLabel] = useState<string | null>(null);
   const [connectionCount, setConnectionCount] = useState(0);
@@ -79,6 +85,8 @@ export function CineWeb() {
         setCenterLabel(graph.center.title);
         setConnectionCount(graph.connections.length);
         setStarted(true);
+        setRestoring(false);
+        clearRestoringHtml();
         setTopOpen(false);
 
         if (!skipTopHintRef.current && !hasSeenTopHint()) {
@@ -101,15 +109,16 @@ export function CineWeb() {
         }
 
         const url = new URL(window.location.href);
-        url.searchParams.set(
-          "path",
-          updatedCrumbs.map((c) => `${c.type[0]}${c.tmdbId}`).join(",")
-        );
+        const pathEncoded = updatedCrumbs.map((c) => `${c.type[0]}${c.tmdbId}`).join(",");
+        url.searchParams.set("path", pathEncoded);
         window.history.replaceState({}, "", url.toString());
+        saveSessionPath(pathEncoded);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
-        setLoading(false);
+        if (gen === loadGenRef.current) {
+          setLoading(false);
+        }
       }
     },
     []
@@ -160,10 +169,13 @@ export function CineWeb() {
     setCenterLabel(null);
     setConnectionCount(0);
     setStarted(false);
+    setRestoring(false);
+    clearRestoringHtml();
     setError(null);
     setTooltip(null);
     setLoading(false);
     setRandomizing(false);
+    clearSessionPath();
 
     const url = new URL(window.location.href);
     url.searchParams.delete("path");
@@ -202,14 +214,21 @@ export function CineWeb() {
     window.addEventListener("resize", onResize);
     onResize();
 
-    const pathParam = new URLSearchParams(window.location.search).get("path");
-    if (pathParam) {
-      const segments = parsePath(pathParam);
+    const pathRaw = getSavedPathRaw();
+    if (pathRaw) {
+      const segments = parsePath(pathRaw);
       if (segments.length > 0) {
+        let cancelled = false;
+        setLoading(true);
+        setRestoring(true);
+        document.documentElement.dataset.restoring = "true";
+
         (async () => {
           const built: BreadcrumbItem[] = [];
           for (const seg of segments) {
+            if (cancelled) return;
             const graph = await fetchGraph(seg.type, seg.tmdbId);
+            if (cancelled) return;
             built.push({
               id: graph.center.id,
               type: graph.center.type,
@@ -217,11 +236,25 @@ export function CineWeb() {
               title: graph.center.title,
             });
           }
+          if (cancelled) return;
           setCrumbs(built);
           crumbsRef.current = built;
           const last = segments[segments.length - 1];
           await loadNode(last.type, last.tmdbId, built[built.length - 1]?.title, false);
-        })().catch(() => setError("Could not restore shared path"));
+        })().catch(() => {
+          if (cancelled) return;
+          setError("Could not restore shared path");
+          setRestoring(false);
+          clearRestoringHtml();
+          setLoading(false);
+        });
+
+        return () => {
+          cancelled = true;
+          window.removeEventListener("resize", onResize);
+          scene.unmount(container);
+          sceneRef.current = null;
+        };
       }
     }
 
@@ -320,7 +353,7 @@ export function CineWeb() {
             <ShareButton crumbs={crumbs} />
           </div>
         )}
-        {!started && !loading && (
+        {!started && !loading && !restoring && (
           <div className="hero-overlay">
             <div className="hero-card">
               <h2>Six degrees, but cinematic</h2>
@@ -336,7 +369,7 @@ export function CineWeb() {
             </div>
           </div>
         )}
-        {loading && !started && (
+        {(loading || restoring) && !started && (
           <div className="loading-overlay">
             <span className="loading-pulse" />
             <p>Loading connections…</p>

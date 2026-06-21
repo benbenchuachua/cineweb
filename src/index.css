@@ -657,6 +657,10 @@ body {
   background: radial-gradient(circle at center, transparent 30%, var(--hero-overlay) 100%);
 }
 
+html[data-restoring="true"] .hero-overlay {
+  display: none !important;
+}
+
 .hero-card {
   pointer-events: auto;
   display: flex;

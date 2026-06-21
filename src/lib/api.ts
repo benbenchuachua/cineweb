@@ -1,5 +1,6 @@
 export type { GraphNode, GraphResponse, SearchResult, SearchResponse, NodeType } from "../../server/types";
 import type { SearchResult } from "../../server/types";
+import { fetchJson } from "./fetchJson";
 
 export interface BreadcrumbItem {
   id: string;
@@ -41,8 +42,6 @@ export function buildShareUrl(crumbs: BreadcrumbItem[]): string {
 }
 
 export async function fetchRandomPerson(): Promise<SearchResult> {
-  const res = await fetch("/api/random");
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Could not pick someone random");
-  return data.result as SearchResult;
+  const data = await fetchJson<{ result: SearchResult }>("/api/random", "Could not pick someone random");
+  return data.result;
 }

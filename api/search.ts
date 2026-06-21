@@ -1,3 +1,3 @@
-import { handleSearchRequest } from "../../server/vercelHandlers";
+import { handleSearchRequest } from "../server/vercelHandlers";
 
 export default handleSearchRequest;

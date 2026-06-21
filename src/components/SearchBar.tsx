@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SearchResult } from "../lib/api";
+import { search } from "../lib/api";
 
 interface SearchBarProps {
   onSelect: (result: SearchResult) => void;
@@ -34,8 +35,7 @@ export function SearchBar({
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
-        const data = await res.json();
+        const data = await search(query.trim());
         setResults(data.results ?? []);
         setOpen(true);
       } catch {

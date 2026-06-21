@@ -1,3 +1,3 @@
-import { handleRandomRequest } from "../../server/vercelHandlers";
+import { handleRandomRequest } from "../server/vercelHandlers";
 
 export default handleRandomRequest;
