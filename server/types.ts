@@ -28,3 +28,7 @@ export interface SearchResult {
 export interface SearchResponse {
   results: SearchResult[];
 }
+
+export interface RandomResponse {
+  result: SearchResult;
+}

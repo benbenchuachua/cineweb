@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { enforceRateLimit, getClientIp } from "./rateLimit";
-import { getGraph, searchTmdb } from "./tmdb";
+import { getGraph, getRandomPerson, searchTmdb } from "./tmdb";
 
 function sendJson(res: ServerResponse, status: number, body: unknown, headers?: Record<string, string>) {
   res.statusCode = status;
@@ -42,7 +42,24 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return;
       }
       const data = await searchTmdb(q);
-      sendJson(res, 200, data);
+      sendJson(res, 200, data, {
+        "Cache-Control": "public, s-maxage=900, stale-while-revalidate=3600",
+      });
+      return;
+    }
+
+    if (path === "/api/random") {
+      const limit = enforceRateLimit(ip, "search");
+      if (!limit.ok) {
+        sendJson(res, 429, { error: "Too many requests. Please slow down." }, {
+          "Retry-After": String(limit.retryAfter ?? 60),
+        });
+        return;
+      }
+      const data = await getRandomPerson();
+      sendJson(res, 200, data, {
+        "Cache-Control": "no-store",
+      });
       return;
     }
 
@@ -56,7 +73,9 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return;
       }
       const data = await getGraph("movie", Number(movieMatch[1]));
-      sendJson(res, 200, data);
+      sendJson(res, 200, data, {
+        "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=86400",
+      });
       return;
     }
 
@@ -70,7 +89,9 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return;
       }
       const data = await getGraph("person", Number(personMatch[1]));
-      sendJson(res, 200, data);
+      sendJson(res, 200, data, {
+        "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=86400",
+      });
       return;
     }
 

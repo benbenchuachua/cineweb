@@ -4,10 +4,9 @@ import type { BreadcrumbItem } from "../lib/api";
 
 interface ShareButtonProps {
   crumbs: BreadcrumbItem[];
-  onScreenshot: () => string;
 }
 
-export function ShareButton({ crumbs, onScreenshot }: ShareButtonProps) {
+export function ShareButton({ crumbs }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   if (crumbs.length === 0) return null;
@@ -27,21 +26,10 @@ export function ShareButton({ crumbs, onScreenshot }: ShareButtonProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const downloadShot = () => {
-    const dataUrl = onScreenshot();
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `cineweb-${Date.now()}.png`;
-    a.click();
-  };
-
   return (
     <div className="share-group">
       <button type="button" className="btn-secondary" onClick={share}>
         {copied ? "Link copied!" : "Share path"}
-      </button>
-      <button type="button" className="btn-secondary" onClick={downloadShot}>
-        Save screenshot
       </button>
     </div>
   );

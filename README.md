@@ -39,7 +39,6 @@ API routes are rate-limited per IP (15 searches/min, 40 graph loads/min) to prot
 - Click any node to fly the camera and bloom new connections
 - Breadcrumb trail tracks your path
 - Share button copies a link with the path encoded (`?path=m550,p287,...`)
-- Save screenshot of the current view
 - In-memory server cache to reduce TMDB calls
 
 ## Tech

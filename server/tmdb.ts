@@ -1,5 +1,5 @@
-import { getCached, setCache } from "./cache";
-import type { GraphNode, GraphResponse, SearchResponse } from "./types";
+import { getCached, setCache, searchCacheTtl } from "./cache";
+import type { GraphNode, GraphResponse, RandomResponse, SearchResponse } from "./types";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_CONNECTIONS = 10;
@@ -71,7 +71,7 @@ export async function searchTmdb(query: string): Promise<SearchResponse> {
 
   const results = [...movieResults, ...personResults].slice(0, 10);
   const response = { results };
-  setCache(cacheKey, response, 15 * 60 * 1000);
+  setCache(cacheKey, response, searchCacheTtl());
   return response;
 }
 
@@ -172,4 +172,34 @@ export async function getPersonGraph(id: number): Promise<GraphResponse> {
 
 export async function getGraph(type: "movie" | "person", id: number): Promise<GraphResponse> {
   return type === "movie" ? getMovieGraph(id) : getPersonGraph(id);
+}
+
+type PopularPerson = {
+  id: number;
+  name: string;
+  profile_path?: string | null;
+  known_for_department?: string;
+};
+
+export async function getRandomPerson(): Promise<RandomResponse> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const page = Math.floor(Math.random() * 100) + 1;
+    const data = await tmdbFetch<{ results: PopularPerson[] }>(`/person/popular?page=${page}`);
+    const pool = data.results.filter((p) => p.profile_path);
+    if (pool.length === 0) continue;
+
+    const pick = pool[Math.floor(Math.random() * pool.length)]!;
+    return {
+      result: {
+        id: nodeId("person", pick.id),
+        type: "person",
+        tmdbId: pick.id,
+        title: pick.name,
+        subtitle: pick.known_for_department ?? "Actor",
+        imagePath: pick.profile_path ?? null,
+      },
+    };
+  }
+
+  throw new Error("Could not find a random person — try again");
 }

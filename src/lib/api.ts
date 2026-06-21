@@ -1,4 +1,5 @@
 export type { GraphNode, GraphResponse, SearchResult, SearchResponse, NodeType } from "../../server/types";
+import type { SearchResult } from "../../server/types";
 
 export interface BreadcrumbItem {
   id: string;
@@ -12,17 +13,13 @@ export function imageUrl(path: string | null, size: "w185" | "w342" = "w185"): s
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
-export async function search(query: string) {
-  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-  if (!res.ok) throw new Error("Search failed");
-  return res.json();
-}
-
-export async function fetchGraph(type: "movie" | "person", id: number) {
-  const res = await fetch(`/api/graph/${type}/${id}`);
-  if (!res.ok) throw new Error("Failed to load graph");
-  return res.json();
-}
+export {
+  fetchGraph,
+  prefetchGraph,
+  prefetchConnections,
+  getCachedGraph,
+  search,
+} from "./graphCache";
 
 export function encodePath(crumbs: BreadcrumbItem[]): string {
   return crumbs.map((c) => `${c.type[0]}${c.tmdbId}`).join(",");
@@ -41,4 +38,11 @@ export function buildShareUrl(crumbs: BreadcrumbItem[]): string {
   const url = new URL(window.location.href);
   url.searchParams.set("path", encodePath(crumbs));
   return url.toString();
+}
+
+export async function fetchRandomPerson(): Promise<SearchResult> {
+  const res = await fetch("/api/random");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Could not pick someone random");
+  return data.result as SearchResult;
 }

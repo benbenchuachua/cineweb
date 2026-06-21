@@ -4,9 +4,19 @@ import type { SearchResult } from "../lib/api";
 interface SearchBarProps {
   onSelect: (result: SearchResult) => void;
   loading: boolean;
+  autoFocus?: boolean;
+  variant?: "default" | "hero";
+  placeholder?: string;
 }
 
-export function SearchBar({ onSelect, loading }: SearchBarProps) {
+export function SearchBar({
+  onSelect,
+  loading,
+  autoFocus = false,
+  variant = "default",
+  placeholder = "Search movies or actors…",
+}: SearchBarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -40,12 +50,17 @@ export function SearchBar({ onSelect, loading }: SearchBarProps) {
     };
   }, [query]);
 
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+
   return (
-    <div className="search-wrap">
+    <div className={`search-wrap ${variant === "hero" ? "search-wrap-hero" : ""}`}>
       <input
+        ref={inputRef}
         className="search-input"
         type="search"
-        placeholder="Search a movie or actor to start exploring…"
+        placeholder={placeholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}

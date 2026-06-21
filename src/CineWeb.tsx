@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { SearchBar } from "./components/SearchBar";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { ShareButton } from "./components/ShareButton";
 import type { BreadcrumbItem, GraphNode, SearchResult } from "./lib/api";
-import { fetchGraph, parsePath } from "./lib/api";
+import { fetchGraph, fetchRandomPerson, parsePath, prefetchConnections, prefetchGraph } from "./lib/api";
+import { nodeDescription } from "./lib/layout";
+import { loadSettings, saveSettings, type AppSettings } from "./lib/settings";
+import { hasSeenTopHint, markTopHintSeen } from "./lib/onboarding";
+import { setActiveTheme } from "./lib/theme";
 import { GraphScene } from "./scene/GraphScene";
 
 export function CineWeb() {
@@ -11,26 +16,73 @@ export function CineWeb() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<GraphScene | null>(null);
   const crumbsRef = useRef<BreadcrumbItem[]>([]);
+  const loadGenRef = useRef(0);
+  const skipTopHintRef = useRef(
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("path")
+  );
 
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [crumbs, setCrumbs] = useState<BreadcrumbItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [centerLabel, setCenterLabel] = useState<string | null>(null);
   const [connectionCount, setConnectionCount] = useState(0);
   const [started, setStarted] = useState(false);
+  const [randomizing, setRandomizing] = useState(false);
+  const [topOpen, setTopOpen] = useState(false);
+  const [showTopHint, setShowTopHint] = useState(false);
+  const topHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const topHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    node: GraphNode;
+    x: number;
+    y: number;
+  } | null>(null);
 
   crumbsRef.current = crumbs;
 
+  const applySettings = useCallback((next: AppSettings) => {
+    setSettings(next);
+    saveSettings(next);
+    document.documentElement.dataset.theme = next.theme;
+    setActiveTheme(next.theme);
+    sceneRef.current?.setTheme(next.theme);
+    sceneRef.current?.setScrollSpeed(next.scrollSpeed);
+    sceneRef.current?.setZoomSpeed(next.zoomSpeed);
+    sceneRef.current?.setViewMode(next.viewMode);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+    setActiveTheme(settings.theme);
+    sceneRef.current?.setTheme(settings.theme);
+    sceneRef.current?.setScrollSpeed(settings.scrollSpeed);
+    sceneRef.current?.setZoomSpeed(settings.zoomSpeed);
+    sceneRef.current?.setViewMode(settings.viewMode);
+  }, [settings.theme, settings.scrollSpeed, settings.zoomSpeed, settings.viewMode]);
+
   const loadNode = useCallback(
     async (type: "movie" | "person", tmdbId: number, title?: string, appendCrumb = true) => {
+      const gen = ++loadGenRef.current;
       setLoading(true);
       setError(null);
       try {
         const graph = await fetchGraph(type, tmdbId);
+        if (gen !== loadGenRef.current) return;
+
         await sceneRef.current?.setGraph(graph.center, graph.connections);
+        if (gen !== loadGenRef.current) return;
+
+        prefetchConnections(graph.connections);
         setCenterLabel(graph.center.title);
         setConnectionCount(graph.connections.length);
         setStarted(true);
+        setTopOpen(false);
+
+        if (!skipTopHintRef.current && !hasSeenTopHint()) {
+          setShowTopHint(true);
+        }
 
         let updatedCrumbs = crumbsRef.current;
         if (appendCrumb) {
@@ -63,15 +115,25 @@ export function CineWeb() {
   );
 
   const onNodeClick = useCallback(
-    (node: GraphNode) => {
-      loadNode(node.type, node.tmdbId, node.title);
+    async (node: GraphNode) => {
+      await loadNode(node.type, node.tmdbId, node.title);
     },
     [loadNode]
   );
 
+  const onHover = useCallback((node: GraphNode | null, screen: { x: number; y: number } | null) => {
+    if (node && screen) {
+      setTooltip({ node, x: screen.x, y: screen.y });
+      prefetchGraph(node.type, node.tmdbId);
+    } else {
+      setTooltip(null);
+    }
+  }, []);
+
   const onSearchSelect = useCallback(
     (result: SearchResult) => {
       setCrumbs([]);
+      setTopOpen(false);
       loadNode(result.type, result.tmdbId, result.title);
     },
     [loadNode]
@@ -89,12 +151,49 @@ export function CineWeb() {
     [crumbs, loadNode]
   );
 
+  const onReset = useCallback(() => {
+    loadGenRef.current += 1;
+    sceneRef.current?.reset();
+    setCrumbs([]);
+    crumbsRef.current = [];
+    setCenterLabel(null);
+    setConnectionCount(0);
+    setStarted(false);
+    setError(null);
+    setTooltip(null);
+    setLoading(false);
+    setRandomizing(false);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("path");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+
+  const onRandom = useCallback(async () => {
+    setRandomizing(true);
+    setError(null);
+    try {
+      const result = await fetchRandomPerson();
+      setCrumbs([]);
+      crumbsRef.current = [];
+      setTopOpen(false);
+      await loadNode(result.type, result.tmdbId, result.title);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not pick someone random");
+    } finally {
+      setRandomizing(false);
+    }
+  }, [loadNode]);
+
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    const scene = new GraphScene(canvas, onNodeClick);
+    const initial = loadSettings();
+    const scene = new GraphScene(canvas, onNodeClick, onHover, initial.theme, initial.viewMode);
+    scene.setScrollSpeed(initial.scrollSpeed);
+    scene.setZoomSpeed(initial.zoomSpeed);
     scene.mount(container);
     sceneRef.current = scene;
 
@@ -130,37 +229,113 @@ export function CineWeb() {
       scene.unmount(container);
       sceneRef.current = null;
     };
-  }, [loadNode, onNodeClick]);
+  }, [loadNode, onNodeClick, onHover]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settingsOpen]);
+
+  const dismissTopHint = useCallback(() => {
+    setShowTopHint(false);
+    markTopHintSeen();
+    if (topHintTimerRef.current) clearTimeout(topHintTimerRef.current);
+  }, []);
+
+  const showTop = useCallback(() => {
+    if (topHideRef.current) clearTimeout(topHideRef.current);
+    setTopOpen(true);
+    dismissTopHint();
+  }, [dismissTopHint]);
+
+  const scheduleHideTop = useCallback(() => {
+    if (topHideRef.current) clearTimeout(topHideRef.current);
+    topHideRef.current = setTimeout(() => setTopOpen(false), 450);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (topHideRef.current) clearTimeout(topHideRef.current);
+      if (topHintTimerRef.current) clearTimeout(topHintTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showTopHint) return;
+    topHintTimerRef.current = setTimeout(() => dismissTopHint(), 12000);
+    return () => {
+      if (topHintTimerRef.current) clearTimeout(topHintTimerRef.current);
+    };
+  }, [showTopHint, dismissTopHint]);
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="brand">
-          <span className="brand-mark">◉</span>
-          <h1>CineWeb</h1>
-        </div>
-        <SearchBar onSelect={onSearchSelect} loading={loading} />
-      </header>
-
-      <div className="trail-row">
-        <Breadcrumbs items={crumbs} onJump={onCrumbJump} />
-        <ShareButton
-          crumbs={crumbs}
-          onScreenshot={() => sceneRef.current?.captureScreenshot() ?? ""}
+      <div
+        className={`top-chrome ${topOpen ? "top-chrome-open" : ""} ${showTopHint ? "top-chrome-hint" : ""}`}
+        onMouseLeave={scheduleHideTop}
+      >
+        <div
+          className="top-trigger"
+          onMouseEnter={showTop}
+          onFocus={showTop}
+          aria-label="Show menu"
+          tabIndex={0}
         />
+        <div className="top-drawer" onMouseEnter={showTop}>
+          <SearchBar onSelect={onSearchSelect} loading={loading} />
+        </div>
       </div>
 
-      <div ref={containerRef} className="canvas-wrap">
-        <canvas ref={canvasRef} />
-        {!started && !loading && (
-          <div className="hero-overlay">
-            <h2>Six degrees, but cinematic</h2>
-            <p>
-              Search any movie or actor. Click nodes to wander cast lists and filmographies in 3D.
-            </p>
+      {showTopHint && (
+        <div className="top-search-hint" role="status">
+          <span className="top-search-hint-arrow" aria-hidden="true">
+            ↑
+          </span>
+          <p>Search again anytime — move to the top edge</p>
+          <button type="button" className="top-search-hint-dismiss" onClick={dismissTopHint}>
+            Got it
+          </button>
+        </div>
+      )}
+
+      <SettingsPanel
+        open={settingsOpen}
+        settings={settings}
+        onChange={applySettings}
+        onClose={() => setSettingsOpen(false)}
+      />
+
+      <div className="canvas-wrap">
+        <div ref={containerRef} className="canvas-stage">
+          <canvas ref={canvasRef} />
+        </div>
+        {crumbs.length > 0 && (
+          <div className="trail-float">
+            <Breadcrumbs items={crumbs} onJump={onCrumbJump} />
+            <ShareButton crumbs={crumbs} />
           </div>
         )}
-        {loading && (
+        {!started && !loading && (
+          <div className="hero-overlay">
+            <div className="hero-card">
+              <h2>Six degrees, but cinematic</h2>
+              <p>Search a movie or actor to map their connections</p>
+              <SearchBar
+                variant="hero"
+                autoFocus
+                onSelect={onSearchSelect}
+                loading={loading}
+                placeholder="Try “Inception” or “Tom Hanks”…"
+              />
+              <p className="hero-footnote">Or hit Random in the bottom right</p>
+            </div>
+          </div>
+        )}
+        {loading && !started && (
           <div className="loading-overlay">
             <span className="loading-pulse" />
             <p>Loading connections…</p>
@@ -176,16 +351,56 @@ export function CineWeb() {
             )}
           </div>
         )}
+        {tooltip && (
+          <div
+            className="node-tooltip"
+            style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}
+          >
+            <strong>{tooltip.node.title}</strong>
+            <span>{nodeDescription(tooltip.node)}</span>
+          </div>
+        )}
+        <button
+          type="button"
+          className="btn-options"
+          onClick={() => setSettingsOpen(true)}
+          title="Settings"
+          aria-label="Settings"
+        >
+          ⚙
+        </button>
+        <div className="canvas-actions">
+          <button
+            type="button"
+            className="btn-float"
+            onClick={onRandom}
+            disabled={loading || randomizing}
+            title="Explore a random actor"
+            aria-label="Random actor"
+          >
+            {randomizing ? "…" : "Random"}
+          </button>
+          {started && (
+            <button
+              type="button"
+              className="btn-float"
+              onClick={onReset}
+              title="Reset exploration"
+              aria-label="Reset"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
-      {centerLabel && (
-        <footer className="footer">
+      {centerLabel && started && (
+        <footer className="footer footer-minimal">
           <strong>{centerLabel}</strong>
-          <span>
-            {connectionCount === 0
-              ? "No connections found — try a bigger movie or actor"
-              : `${connectionCount} connection${connectionCount === 1 ? "" : "s"}`}
-          </span>
+          {!loading && connectionCount > 0 && (
+            <span>{connectionCount} connection{connectionCount === 1 ? "" : "s"}</span>
+          )}
+          {loading && <span>Loading…</span>}
         </footer>
       )}
     </div>
