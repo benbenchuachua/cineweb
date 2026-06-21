@@ -4,13 +4,14 @@
 
 ## Setup
 
-1. Get a free API key at [TMDB Settings → API](https://www.themoviedb.org/settings/api)
+1. Get a free token at [TMDB Settings → API](https://www.themoviedb.org/settings/api)
+   - Use the **API Read Access Token** (Bearer token) — **not** the v3 API Key
    - **Application URL:** `https://github.com/benbenchuachua/cineweb` or `http://localhost:5173`
-2. **Never commit your key.** Copy `.env.example` to `.env` locally only:
+2. **Never commit your token.** Copy `.env.example` to `.env` locally only:
 
 ```bash
 cp .env.example .env
-# TMDB_API_KEY=...
+# TMDB_READ_ACCESS_TOKEN=eyJ...
 ```
 
 3. Install and run:
@@ -25,8 +26,8 @@ Open [http://localhost:5173](http://localhost:5173).
 ## Deploy (Vercel)
 
 1. Import this repo in [Vercel](https://vercel.com/new)
-2. Add environment variable **`TMDB_API_KEY`** in Project → Settings → Environment Variables (Production, Preview, Development)
-3. Deploy
+2. Add environment variable **`TMDB_READ_ACCESS_TOKEN`** in Project → Settings → Environment Variables (Production, Preview, Development). Paste your TMDB **API Read Access Token** (not the v3 API key). `TMDB_API_KEY` is also accepted as a legacy alias.
+3. Deploy — then **Redeploy** after saving env vars so they take effect.
 
 4. **Analytics (optional):** In the Vercel project dashboard, enable **Web Analytics** and **Speed Insights**. The app already includes both via `@vercel/analytics/react` and `@vercel/speed-insights/react` in `src/main.tsx`. After deploy, visit the live site — data appears within ~30 seconds (disable ad blockers if nothing shows).
 

@@ -378,9 +378,10 @@ export function CineWeb() {
         {error && (
           <div className="error-banner">
             {error}
-            {error.includes("TMDB_API_KEY") && (
+            {(error.includes("TMDB_READ_ACCESS_TOKEN") || error.includes("TMDB_API_KEY")) && (
               <small>
-                Set TMDB_API_KEY in Vercel project settings (or in local .env for dev). Never commit the key.
+                In Vercel → Settings → Environment Variables, add <strong>TMDB_READ_ACCESS_TOKEN</strong> with
+                your TMDB API Read Access Token (not the v3 API key). Redeploy after saving.
               </small>
             )}
           </div>

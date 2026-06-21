@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { enforceRateLimit, getClientIp } from "./rateLimit";
-import { getGraph, getRandomPerson, searchTmdb } from "./tmdb";
+import { enforceRateLimit, getClientIp } from "../api/lib/rateLimit";
+import { getGraph, getRandomPerson, searchTmdb, tmdbErrorStatus } from "../api/lib/tmdb";
 
 function sendJson(res: ServerResponse, status: number, body: unknown, headers?: Record<string, string>) {
   res.statusCode = status;
@@ -98,7 +98,6 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     sendJson(res, 404, { error: "Not found" });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    const status = message.includes("TMDB_API_KEY") ? 500 : 502;
-    sendJson(res, status, { error: message });
+    sendJson(res, tmdbErrorStatus(message), { error: message });
   }
 }

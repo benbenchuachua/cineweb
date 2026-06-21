@@ -4,6 +4,7 @@ import { handleApiRequest } from "./server/handler";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  process.env.TMDB_READ_ACCESS_TOKEN = env.TMDB_READ_ACCESS_TOKEN;
   process.env.TMDB_API_KEY = env.TMDB_API_KEY;
 
   return {

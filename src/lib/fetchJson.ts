@@ -12,7 +12,7 @@ export async function fetchJson<T>(url: string, fallbackError: string): Promise<
       res.ok
         ? "Server returned invalid JSON"
         : snippet.includes("server error")
-          ? "Server error — check that TMDB_API_KEY is set on Vercel"
+          ? "Server error — API may be misconfigured on Vercel"
           : snippet || fallbackError
     );
   }

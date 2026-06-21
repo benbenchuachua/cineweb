@@ -4,10 +4,24 @@ import type { GraphNode, GraphResponse, RandomResponse, SearchResponse } from ".
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_CONNECTIONS = 10;
 
-function apiKey(): string {
-  const key = process.env.TMDB_API_KEY;
-  if (!key) throw new Error("TMDB_API_KEY is not set");
+export const TMDB_TOKEN_ENV_HINT =
+  "Set TMDB_READ_ACCESS_TOKEN in Vercel (your TMDB API Read Access Token — not the v3 API key).";
+
+export function getTmdbToken(): string {
+  const key =
+    process.env.TMDB_READ_ACCESS_TOKEN?.trim() || process.env.TMDB_API_KEY?.trim();
+  if (!key) {
+    throw new Error(`TMDB_READ_ACCESS_TOKEN is not set. ${TMDB_TOKEN_ENV_HINT}`);
+  }
   return key;
+}
+
+function isTmdbConfigError(message: string) {
+  return message.includes("TMDB_READ_ACCESS_TOKEN") || message.includes("TMDB_API_KEY");
+}
+
+export function tmdbErrorStatus(message: string) {
+  return isTmdbConfigError(message) ? 500 : 502;
 }
 
 async function tmdbFetch<T>(path: string): Promise<T> {
@@ -17,7 +31,7 @@ async function tmdbFetch<T>(path: string): Promise<T> {
 
   const url = `${TMDB_BASE}${path}`;
   const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${apiKey()}` },
+    headers: { Authorization: `Bearer ${getTmdbToken()}` },
   });
   if (!res.ok) {
     const text = await res.text();

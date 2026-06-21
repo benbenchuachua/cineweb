@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { enforceRateLimit, getClientIp } from "./rateLimit";
-import { getGraph, getRandomPerson, searchTmdb } from "./tmdb";
+import { getGraph, getRandomPerson, searchTmdb, tmdbErrorStatus } from "./tmdb";
 
 function rateLimited(res: VercelResponse, retryAfter?: number) {
   if (retryAfter) res.setHeader("Retry-After", String(retryAfter));
@@ -26,7 +26,7 @@ export async function handleSearchRequest(req: VercelRequest, res: VercelRespons
     return res.status(200).json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return res.status(message.includes("TMDB_API_KEY") ? 500 : 502).json({ error: message });
+    return res.status(tmdbErrorStatus(message)).json({ error: message });
   }
 }
 
@@ -45,7 +45,7 @@ export async function handleRandomRequest(req: VercelRequest, res: VercelRespons
     return res.status(200).json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return res.status(message.includes("TMDB_API_KEY") ? 500 : 502).json({ error: message });
+    return res.status(tmdbErrorStatus(message)).json({ error: message });
   }
 }
 
@@ -73,6 +73,6 @@ export async function handleGraphRequest(
     return res.status(200).json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return res.status(message.includes("TMDB_API_KEY") ? 500 : 502).json({ error: message });
+    return res.status(tmdbErrorStatus(message)).json({ error: message });
   }
 }
