@@ -31,6 +31,8 @@ Open [http://localhost:5173](http://localhost:5173).
 
 4. **Analytics (optional):** In the Vercel project dashboard, enable **Web Analytics** and **Speed Insights**. The app already includes both via `@vercel/analytics/react` and `@vercel/speed-insights/react` in `src/main.tsx`. After deploy, visit the live site — data appears within ~30 seconds (disable ad blockers if nothing shows).
 
+5. **Engagement events (optional):** Run `supabase/cineweb_events.sql` in your Supabase project, then set **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`** in Vercel (and local `.env`). Tracks search, node clicks, shares, and anonymous retention via `localStorage` — no login required. Share links include `?ref=share`; tag your own distribution links with `?ref=internetisbeautiful`, etc.
+
 The API key lives only on the server (`/api/*` proxy). It is never sent to the browser or stored in git.
 
 API routes are rate-limited per IP (15 searches/min, 40 graph loads/min) to protect your TMDB quota.

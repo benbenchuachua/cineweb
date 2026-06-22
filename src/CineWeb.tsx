@@ -16,6 +16,7 @@ import {
   saveSessionPath,
   shouldRestoreSession,
 } from "./lib/session";
+import { initAnalytics, trackNodeClick, trackSearch } from "./lib/analytics";
 import { setActiveTheme } from "./lib/theme";
 import { GraphScene } from "./scene/GraphScene";
 
@@ -126,6 +127,7 @@ export function CineWeb() {
 
   const onNodeClick = useCallback(
     async (node: GraphNode) => {
+      trackNodeClick(node.type, crumbsRef.current.length + 1, node.tmdbId);
       await loadNode(node.type, node.tmdbId, node.title);
     },
     [loadNode]
@@ -187,6 +189,7 @@ export function CineWeb() {
     setError(null);
     try {
       const result = await fetchRandomPerson();
+      trackSearch("__random__", result.type);
       setCrumbs([]);
       crumbsRef.current = [];
       setTopOpen(false);
@@ -197,6 +200,10 @@ export function CineWeb() {
       setRandomizing(false);
     }
   }, [loadNode]);
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;

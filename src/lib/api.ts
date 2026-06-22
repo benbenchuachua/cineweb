@@ -36,8 +36,9 @@ export function parsePath(raw: string): Array<{ type: "movie" | "person"; tmdbId
 }
 
 export function buildShareUrl(crumbs: BreadcrumbItem[]): string {
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin + window.location.pathname);
   url.searchParams.set("path", encodePath(crumbs));
+  url.searchParams.set("ref", "share");
   return url.toString();
 }
 

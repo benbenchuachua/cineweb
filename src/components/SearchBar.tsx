@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SearchResult } from "../lib/api";
 import { search } from "../lib/api";
+import { trackSearch } from "../lib/analytics";
 
 interface SearchBarProps {
   onSelect: (result: SearchResult) => void;
@@ -75,6 +76,7 @@ export function SearchBar({
                 type="button"
                 className="search-result"
                 onClick={() => {
+                  trackSearch(query.trim(), r.type);
                   onSelect(r);
                   setOpen(false);
                   setQuery(r.title);

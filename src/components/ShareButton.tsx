@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { buildShareUrl } from "../lib/api";
 import type { BreadcrumbItem } from "../lib/api";
+import { trackShareClick } from "../lib/analytics";
 
 interface ShareButtonProps {
   crumbs: BreadcrumbItem[];
@@ -12,6 +13,7 @@ export function ShareButton({ crumbs }: ShareButtonProps) {
   if (crumbs.length === 0) return null;
 
   const share = async () => {
+    trackShareClick(crumbs.length);
     const url = buildShareUrl(crumbs);
     try {
       if (navigator.share) {
