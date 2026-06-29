@@ -16,11 +16,14 @@ create index if not exists idx_cineweb_events_created on cineweb_events(created_
 
 alter table cineweb_events enable row level security;
 
+grant insert on cineweb_events to anon;
+grant insert on cineweb_events to authenticated;
+
 drop policy if exists "cineweb_events_anon_insert" on cineweb_events;
 create policy "cineweb_events_anon_insert"
   on cineweb_events
   for insert
-  to anon
+  to anon, authenticated
   with check (true);
 
 -- Example retention query (run manually or via cron):

@@ -1,5 +1,3 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
 const VISITOR_KEY = "cineweb-visitor-id";
 
 export type AnalyticsEventType =
@@ -11,7 +9,6 @@ export type AnalyticsEventType =
 
 type EventMetadata = Record<string, string | number | boolean | null | undefined>;
 
-let supabase: SupabaseClient | null = null;
 let sessionId: string | null = null;
 let sessionStartedAt = 0;
 let maxDepth = 0;
@@ -22,17 +19,18 @@ function env(name: string): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function isConfigured(): boolean {
-  return Boolean(env("VITE_SUPABASE_URL") && env("VITE_SUPABASE_ANON_KEY"));
+function supabaseUrl(): string | undefined {
+  const raw = env("VITE_SUPABASE_URL");
+  if (!raw) return undefined;
+  return raw.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 }
 
-function getSupabase(): SupabaseClient | null {
-  if (supabase) return supabase;
-  const url = env("VITE_SUPABASE_URL");
-  const key = env("VITE_SUPABASE_ANON_KEY");
-  if (!url || !key) return null;
-  supabase = createClient(url, key);
-  return supabase;
+function supabaseKey(): string | undefined {
+  return env("VITE_SUPABASE_ANON_KEY");
+}
+
+export function isAnalyticsConfigured(): boolean {
+  return Boolean(supabaseUrl() && supabaseKey());
 }
 
 export function getVisitorId(): string {
@@ -57,47 +55,41 @@ function insertPayload(eventType: AnalyticsEventType, metadata?: EventMetadata) 
   };
 }
 
+/** Publishable keys (sb_publishable_...) must use apikey header only — not Authorization Bearer. */
 async function insertEvent(eventType: AnalyticsEventType, metadata?: EventMetadata) {
-  if (!isConfigured() || !sessionId) return;
+  const url = supabaseUrl();
+  const key = supabaseKey();
+  if (!url || !key || !sessionId) return;
 
   const row = insertPayload(eventType, metadata);
   if (!row) return;
 
-  const client = getSupabase();
-  if (!client) return;
+  try {
+    const res = await fetch(`${url}/rest/v1/cineweb_events`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(row),
+      keepalive: eventType === "session_end",
+    });
 
-  const { error } = await client.from("cineweb_events").insert(row);
-  if (error) {
-    console.debug("[cineweb analytics]", error.message);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn("[cineweb analytics]", eventType, res.status, text.slice(0, 120));
+    }
+  } catch (err) {
+    console.warn("[cineweb analytics]", eventType, err);
   }
-}
-
-function insertEventBeacon(eventType: AnalyticsEventType, metadata?: EventMetadata) {
-  if (!isConfigured() || !sessionId) return;
-
-  const url = env("VITE_SUPABASE_URL");
-  const key = env("VITE_SUPABASE_ANON_KEY");
-  const row = insertPayload(eventType, metadata);
-  if (!url || !key || !row) return;
-
-  void fetch(`${url}/rest/v1/cineweb_events`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(row),
-    keepalive: true,
-  }).catch(() => {});
 }
 
 function endSession() {
   if (!sessionId || ended) return;
   ended = true;
 
-  insertEventBeacon("session_end", {
+  void insertEvent("session_end", {
     total_depth: maxDepth,
     duration_seconds: Math.round((Date.now() - sessionStartedAt) / 1000),
   });
@@ -111,7 +103,12 @@ function onVisibilityChange() {
 
 export function initAnalytics() {
   if (sessionId) return;
-  if (!isConfigured()) return;
+  if (!isAnalyticsConfigured()) {
+    if (import.meta.env.DEV) {
+      console.info("[cineweb analytics] disabled — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
+    }
+    return;
+  }
 
   sessionId = crypto.randomUUID();
   sessionStartedAt = Date.now();
@@ -120,7 +117,7 @@ export function initAnalytics() {
 
   const ref = new URLSearchParams(window.location.search).get("ref");
 
-  void insertEvent("session_start", { ref });
+  void insertEvent("session_start", { referrer: document.referrer || null, ref });
 
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("pagehide", endSession);
@@ -140,5 +137,5 @@ export function trackShareClick(depth: number) {
 }
 
 export function analyticsEnabled(): boolean {
-  return isConfigured();
+  return isAnalyticsConfigured();
 }
